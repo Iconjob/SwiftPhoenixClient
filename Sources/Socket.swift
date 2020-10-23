@@ -658,7 +658,8 @@ public class Socket {
 
     self.heartbeatTimer = HeartbeatTimer(timeInterval: heartbeatInterval, dispatchQueue: heartbeatQueue)
     self.heartbeatTimer?.startTimerWithEvent(eventHandler: { [weak self] in
-        self?.sendHeartbeat()
+        guard let self = self else { return }
+        self.sendHeartbeat()
     })
   }
   

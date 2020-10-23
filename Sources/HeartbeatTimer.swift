@@ -33,7 +33,8 @@ class HeartbeatTimer: Equatable {
         let t = DispatchSource.makeTimerSource(flags: [], queue: self.dispatchQueue)
         t.schedule(deadline: .now() + self.timeInterval, repeating: self.timeInterval)
         t.setEventHandler(handler: { [weak self] in
-            self?.eventHandler?()
+            guard let self = self else { return }
+            self.eventHandler?()
         })
         return t
     }()
