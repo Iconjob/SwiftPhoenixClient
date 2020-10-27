@@ -23,18 +23,24 @@
 import PackageDescription
 
 let package = Package(
-  name: "SwiftPhoenixClient",
-  platforms: [.iOS(.v9), .macOS(.v10_12), .tvOS(.v10), .watchOS(.v2)],
-  products: [
-    .library(name: "SwiftPhoenixClient", targets: ["SwiftPhoenixClient"])
-  ],
-  dependencies: [
-    .package(url: "https://github.com/daltoniam/Starscream.git", .upToNextMajor(from: "4.0.4"))
-  ],
-  targets: [
-    .target(name: "SwiftPhoenixClient",
-            dependencies: ["Starscream"],
-            path: "Sources",
-            exclude: ["Example", "Tests"])
+    name: "SwiftPhoenixClient",
+    platforms: [.iOS(.v9), .macOS(.v10_12), .tvOS(.v10), .watchOS(.v2)],
+    products: [
+        .library(name: "SwiftPhoenixClient", targets: ["SwiftPhoenixClient"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/daltoniam/Starscream.git", .upToNextMajor(from: "4.0.4")),
+        .package(url: "https://github.com/Quick/Nimble.git", .upToNextMajor(from: "9.0.0")),
+        .package(url: "https://github.com/Quick/Quick.git", .upToNextMajor(from: "3.0.0")),
+    ],
+    targets: [
+        .target(name: "SwiftPhoenixClient",
+                dependencies: ["Starscream"],
+                path: "Sources",
+                exclude: ["Example", "Tests"]),
+//        .testTarget(name: "SwiftPhoenixClientTests",
+//                    dependencies: ["Quick", "Nimble", "SwiftPhoenixClient"],
+//                    path: "Tests"
+//        )
     ]
 )
