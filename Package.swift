@@ -30,8 +30,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/daltoniam/Starscream.git", .upToNextMajor(from: "4.0.4")),
-        .package(url: "https://github.com/Quick/Nimble.git", .upToNextMajor(from: "9.0.0")),
-        .package(url: "https://github.com/Quick/Quick.git", .upToNextMajor(from: "3.0.0")),
+        .package(url: "https://github.com/Quick/Quick.git", .upToNextMajor(from: "2.1.0")), // dev
+        .package(url: "https://github.com/Quick/Nimble.git", .upToNextMajor(from: "8.0.2")), // dev
     ],
     targets: [
         .target(name: "SwiftPhoenixClient",
