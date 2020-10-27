@@ -22,7 +22,6 @@
 import Starscream
 import Foundation
 
-
 /// Alias for a JSON dictionary [String: Any]
 public typealias Payload = [String: Any]
 
@@ -81,7 +80,7 @@ public class Socket {
   
   /// The WebSocket transport. Default behavior is to provide a Starscream
   /// WebSocket instance. Potentially allows changing WebSockets in future
-  private let transport: ((URL) -> WebSocketClient)
+  private let transport: ((URL) -> WebSocket)
   
   /// Override to provide custom encoding of data before writing to the socket
   public var encode: ([String: Any]) -> Data = Defaults.encode
@@ -115,12 +114,12 @@ public class Socket {
   #else
   /// Configure custom SSL validation logic, eg. SSL pinning. This
   /// must be set before calling `socket.connect()` in order to apply.
-  public var security: SSLTrustValidator?
+//  public var security: Starscream.SSLTrustValidator?
   
   /// Configure the encryption used by your client by setting the
   /// allowed cipher suites supported by your server. This must be
   /// set before calling `socket.connect()` in order to apply.
-  public var enabledSSLCipherSuites: [SSLCipherSuite]?
+//  public var enabledSSLCipherSuites: [SSLCipherSuite]?
   #endif
   
   
@@ -155,7 +154,7 @@ public class Socket {
   var closeWasClean: Bool = false
   
   /// Websocket connection to the server
-  var connection: WebSocketClient?
+  var connection: WebSocket?
   
   
   //----------------------------------------------------------------------
@@ -164,20 +163,20 @@ public class Socket {
   public convenience init(_ endPoint: String,
                           params: Payload? = nil) {
     self.init(endPoint: endPoint,
-              transport: { url in return WebSocket(url: url) },
+              transport: { url in return WebSocket(request: URLRequest(url: url)) },
               paramsClosure: { params })
   }
 
   public convenience init(_ endPoint: String,
                           paramsClosure: PayloadClosure?) {
     self.init(endPoint: endPoint,
-              transport: { url in return WebSocket(url: url) },
+              transport: { url in return WebSocket(request: URLRequest(url: url)) },
               paramsClosure: paramsClosure)
   }
   
   
   public init(endPoint: String,
-       transport: @escaping ((URL) -> WebSocketClient),
+       transport: @escaping ((URL) -> WebSocket),
        paramsClosure: PayloadClosure? = nil) {
     self.transport = transport
     self.paramsClosure = paramsClosure
@@ -214,8 +213,13 @@ public class Socket {
   
   /// - return: True if the socket is connected
   public var isConnected: Bool {
-    return self.connection != nil && self.connection!.isConnected
+    isolationQ.sync {
+        self.connection != nil && isConnectedFlag
+    }
   }
+    
+  private let isolationQ = DispatchQueue(label: "isConnectedFlag.isolation.queue")
+  private var isConnectedFlag: Bool = false
   
   /// Connects the Socket. The params passed to the Socket on initialization
   /// will be sent through the connection. If the Socket is already connected,
@@ -234,13 +238,13 @@ public class Socket {
 
     self.connection = self.transport(self.endPointUrl)
     self.connection?.delegate = self
-    self.connection?.disableSSLCertValidation = disableSSLCertValidation
+//    self.connection?.disableSSLCertValidation = disableSSLCertValidation
     
-    #if os(Linux)
-    #else
-    self.connection?.security = security
-    self.connection?.enabledSSLCipherSuites = enabledSSLCipherSuites
-    #endif
+//    #if os(Linux)
+//    #else
+//    self.connection?.security = security
+//    self.connection?.enabledSSLCipherSuites = enabledSSLCipherSuites
+//    #endif
     
     self.connection?.connect()
   }
@@ -262,7 +266,7 @@ public class Socket {
   
   internal func teardown(code: CloseCode = CloseCode.normal, callback: (() -> Void)? = nil) {
     self.connection?.delegate = nil
-    self.connection?.disconnect(forceTimeout: nil, closeCode: code.rawValue)
+    self.connection?.disconnect(closeCode: code.rawValue)
     self.connection = nil
     
     // The socket connection has been torndown, heartbeats are not needed
@@ -682,8 +686,7 @@ public class Socket {
       
       // Disconnect the socket manually. Do not use `teardown` or
       // `disconnect` as they will nil out the websocket delegate
-      self.connection?.disconnect(forceTimeout: nil,
-                                  closeCode: CloseCode.normal.rawValue)
+      connection?.disconnect(closeCode: CloseCode.normal.rawValue)
       return
     }
     
@@ -703,9 +706,7 @@ public class Socket {
      connection. However, we keep a flag `closeWasClean` set to false so that
      the client knows that it should attempt to reconnect.
      */
-    self.connection?.disconnect(forceTimeout: nil,
-                                closeCode: CloseCode.normal.rawValue)
-    
+    self.connection?.disconnect(closeCode: CloseCode.normal.rawValue)
   }
 }
 
@@ -714,22 +715,45 @@ public class Socket {
 // MARK: - WebSocketDelegate
 //----------------------------------------------------------------------
 extension Socket: WebSocketDelegate {
-  
-  public func websocketDidConnect(socket: WebSocketClient) {
-    self.onConnectionOpen()
-  }
-  
-  public func websocketDidDisconnect(socket: WebSocketClient, error: Error?) {
-    self.onConnectionClosed(code: (error as? WSError)?.code)
-    if let safeError = error { self.onConnectionError(safeError) }
-  }
-  
-  public func websocketDidReceiveMessage(socket: WebSocketClient, text: String) {
-    self.onConnectionMessage(text)
-  }
-  
-  public func websocketDidReceiveData(socket: WebSocketClient, data: Data) {
-    /* no-op */
-  }
+    public func didReceive(event: WebSocketEvent, client: WebSocket) {
+        switch event {
+        case .connected(_):
+            isolationQ.async { [weak self] in
+                guard let self = self else { return }
+                self.isConnectedFlag = true
+            }
+            self.onConnectionOpen()
+        case let .disconnected(_, code):
+            isolationQ.async { [weak self] in
+                guard let self = self else { return }
+                self.isConnectedFlag = false
+            }
+            self.onConnectionClosed(code: Int(code))
+        case let .text(message):
+            self.onConnectionMessage(message)
+        case .binary(_):
+            break
+        case .pong(_):
+            break
+        case .ping(_):
+            break
+        case let .error(error):
+            isolationQ.async { [weak self] in
+                guard let self = self else { return }
+                self.isConnectedFlag = false
+            }
+            error.map(onConnectionError)
+        case .viabilityChanged(_):
+            break
+        case .reconnectSuggested(_):
+            break
+        case .cancelled:
+            isolationQ.async { [weak self] in
+                guard let self = self else { return }
+                self.isConnectedFlag = false
+            }
+            self.onConnectionClosed(code: -1234)
+        }
+    }
 }
 

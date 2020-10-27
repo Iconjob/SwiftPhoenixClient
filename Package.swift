@@ -29,7 +29,7 @@ let package = Package(
     .library(name: "SwiftPhoenixClient", targets: ["SwiftPhoenixClient"])
   ],
   dependencies: [
-    .package(url: "https://github.com/daltoniam/Starscream.git", .upToNextMajor(from: "3.1.0"))
+    .package(url: "https://github.com/daltoniam/Starscream.git", .upToNextMajor(from: "4.0.4"))
   ],
   targets: [
     .target(name: "SwiftPhoenixClient",
