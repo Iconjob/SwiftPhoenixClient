@@ -652,27 +652,40 @@ public class Socket {
   // MARK: - Heartbeat
   //----------------------------------------------------------------------
   internal func resetHeartbeat() {
+    self.logItems("Into resetHeartbeat(), clear anything related")
     // Clear anything related to the heartbeat
     self.pendingHeartbeatRef = nil
+    self.logItems("pendingHeartbeatRef set to nil")
     self.heartbeatTimer?.stopTimer()
+    self.logItems("heartbeatTimer stopped")
     self.heartbeatTimer = nil
+    self.logItems("heartbeatTimer set to nil")
     
+    self.logItems("checking if skipHeartbeat is false")
     // Do not start up the heartbeat timer if skipHeartbeat is true
     guard !skipHeartbeat else { return }
-
-    self.heartbeatTimer = HeartbeatTimer(timeInterval: heartbeatInterval, dispatchQueue: heartbeatQueue)
+    
+    self.logItems("creating new heartbeat timer")
+    self.heartbeatTimer = HeartbeatTimer(timeInterval: heartbeatInterval, dispatchQueue: heartbeatQueue, logger: self.logger)
+    
+    self.logItems("starting timer with event handler")
     self.heartbeatTimer?.startTimerWithEvent(eventHandler: { [weak self] in
+        self?.logItems("Inside timer heartbeat event handler")
         guard let self = self else { return }
+        self.logItems("Sending heartbeat...")
         self.sendHeartbeat()
+        self.logItems("Heartbeat sent")
     })
   }
   
   /// Sends a hearbeat payload to the phoenix serverss
   @objc func sendHeartbeat() {
+    self.logItems("Into sendHeartbeat(), checking isConnected")
     // Do not send if the connection is closed
     guard isConnected else { return }
-
     
+    self.logItems("isConnected is true")
+    self.logItems("If there is a pending heartbeat ref, then the last heartbeat was never acknowledged by the server. Close the connection and attempt to reconnect.")
     // If there is a pending heartbeat ref, then the last heartbeat was
     // never acknowledged by the server. Close the connection and attempt
     // to reconnect.
@@ -690,8 +703,10 @@ public class Socket {
       return
     }
     
+    self.logItems("making new ref, and setting it to pendingHeartbeatRef")
     // The last heartbeat was acknowledged by the server. Send another one
     self.pendingHeartbeatRef = self.makeRef()
+    self.logItems("pushing new heartbeat ref into socket")
     self.push(topic: "phoenix",
               event: ChannelEvent.heartbeat,
               payload: [:],
