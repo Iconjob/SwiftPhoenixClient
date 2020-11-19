@@ -174,6 +174,20 @@ public class Socket {
               transport: { url in return WebSocket(url: url) },
               paramsClosure: paramsClosure)
   }
+    
+  public convenience init(_ endPoint: String,
+                            additionalHeaders: [String: String]) {
+    self.init(
+        endPoint: endPoint,
+        transport: { url in
+            let webSocket = WebSocket(url: url)
+            additionalHeaders.forEach { key, value in
+                webSocket.request.addValue(value, forHTTPHeaderField: key)
+            }
+            return webSocket
+        }
+    )
+  }
   
   
   public init(endPoint: String,
