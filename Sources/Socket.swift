@@ -228,7 +228,17 @@ public class Socket {
   
   /// - return: True if the socket is connected
   public var isConnected: Bool {
-    return self.connection != nil && self.connection!.isConnected
+    func notSafeIsConnected() -> Bool {
+        return connection.map { $0.isConnected } ?? false
+    }
+    // isConnected is not thread-safe in Starscream so we should access it through barrier task/serial queue
+    if Thread.isMainThread {
+        return notSafeIsConnected()
+    } else {
+        return DispatchQueue.main.sync {
+            notSafeIsConnected()
+        }
+    }
   }
   
   /// Connects the Socket. The params passed to the Socket on initialization
