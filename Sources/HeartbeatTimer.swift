@@ -24,32 +24,20 @@ class HeartbeatTimer: Equatable {
     let timeInterval: TimeInterval
     let dispatchQueue: DispatchQueue
     let id: String = UUID().uuidString
-    private var logger: ((String) -> Void)?
     
-    init(timeInterval: TimeInterval, dispatchQueue: DispatchQueue, logger: ((String) -> Void)?) {
+    init(timeInterval: TimeInterval, dispatchQueue: DispatchQueue) {
         self.timeInterval = timeInterval
         self.dispatchQueue = dispatchQueue
-        self.logger = logger
     }
     
     private lazy var timer: DispatchSourceTimer = {
-        logger?("Lazy loading dispatch source timer")
         let t = DispatchSource.makeTimerSource(flags: [], queue: self.dispatchQueue)
-        logger?("Created timer queue as timer source")
         t.schedule(deadline: .now() + self.timeInterval, repeating: self.timeInterval)
-        
-            logger?("Timer scheduled to .now() + timerInterval")
-        
-            logger?("Setting event handler...")
         t.setEventHandler(handler: { [weak self] in
             guard let self = self else { return }
-            self.logger?("running event handler")
             let isEventHandlerNil = (self.eventHandler == nil)
-            self.logger?("Event handler is nil: \(isEventHandlerNil)")
             self.eventHandler?()
-            self.logger?("Quitting event handler")
         })
-        logger?("Event handler have been set.")
         return t
     }()
     
@@ -72,13 +60,9 @@ class HeartbeatTimer: Equatable {
     }
     
     func stopTimer() {
-        logger?("in stopTimer, setting timer event handler to {}")
         timer.setEventHandler {}
-        logger?("in stopTimer, setting eventHandler to nil")
         eventHandler = nil
-        logger?("suspending...")
         suspend()
-        logger?("suspended")
     }
     
     private func resume() {
