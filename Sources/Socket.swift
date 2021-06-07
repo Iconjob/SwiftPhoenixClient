@@ -78,6 +78,9 @@ public class Socket {
   /// The optional params closure used to get params whhen connecting. Must
   /// be set when initializaing the Socket.
   public let paramsClosure: PayloadClosure?
+    
+  /// Lock which will help avoiding race conditions
+  private let recursiveLock = NSRecursiveLock()
   
   /// The WebSocket transport. Default behavior is to provide a Starscream
   /// WebSocket instance. Potentially allows changing WebSockets in future
@@ -671,6 +674,8 @@ public class Socket {
   // MARK: - Heartbeat
   //----------------------------------------------------------------------
   internal func resetHeartbeat() {
+    // Acquiring lock in order to guarantee thread safety
+    recursiveLock.lock()
     // Clear anything related to the heartbeat
     self.pendingHeartbeatRef = nil
     self.heartbeatTimer?.stopTimer()
@@ -685,6 +690,8 @@ public class Socket {
         guard let self = self else { return }
         self.sendHeartbeat()
     })
+    // Releasing lock
+    recursiveLock.unlock()
   }
   
   /// Sends a hearbeat payload to the phoenix serverss
