@@ -201,6 +201,7 @@ public class Socket {
 
     self.reconnectTimer = TimeoutTimer()
     self.reconnectTimer.callback.delegate(to: self) { (self) in
+      self.logItems("Socket attempting to reconnect")
       self.teardown() { self.connect() }
     }
     self.reconnectTimer.timerCalculation
@@ -671,18 +672,25 @@ public class Socket {
   // MARK: - Heartbeat
   //----------------------------------------------------------------------
   internal func resetHeartbeat() {
+    self.logItems("Into resetHeartbeat(), clear anything related")
     // Clear anything related to the heartbeat
     self.pendingHeartbeatRef = nil
+    self.logItems("pendingHeartbeatRef set to nil")
     self.heartbeatTimer?.stopTimer()
+    self.logItems("heartbeatTimer stopped")
     self.heartbeatTimer = nil
+    self.logItems("heartbeatTimer set to nil")
     
+    self.logItems("checking if skipHeartbeat is false")
     // Do not start up the heartbeat timer if skipHeartbeat is true
     guard !skipHeartbeat else { return }
     
+    self.logItems("creating new heartbeat timer")
     self.heartbeatTimer = HeartbeatTimer(timeInterval: heartbeatInterval, dispatchQueue: heartbeatQueue)
     
     self.heartbeatTimer?.startTimerWithEvent(eventHandler: { [weak self] in
         guard let self = self else { return }
+        self.logItems("Sending heartbeat...")
         self.sendHeartbeat()
     })
   }
