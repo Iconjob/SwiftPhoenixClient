@@ -85,17 +85,6 @@ class HeartbeatTimer: Equatable {
         eventHandler?()
     }
     
-    deinit {
-        timer.setEventHandler {}
-        timer.cancel()
-        /*
-         If the timer is suspended, calling cancel without resuming
-         triggers a crash. This is documented here https://forums.developer.apple.com/thread/15902
-         */
-        resume()
-        eventHandler = nil
-    }
-    
     static func == (lhs: HeartbeatTimer, rhs: HeartbeatTimer) -> Bool {
         return lhs.id == rhs.id
     }
